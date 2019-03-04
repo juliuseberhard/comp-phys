@@ -18,7 +18,7 @@ long random_at_most(long max) {
   unsigned long num_bins = (unsigned long) max + 1;
   unsigned long num_rand = (unsigned long) RAND_MAX + 1;
   unsigned long bin_size = num_rand / num_bins;
-  unsigned long defect = num_rand % nun_bins;  /* (remainder) */
+  unsigned long defect = num_rand % num_bins;  /* (remainder) */
 
   /* Create random number x from [0, RAND_MAX], "normalize" by bin_size.
      Prevent overflow by checking that x is small enough. */
