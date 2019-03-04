@@ -1,0 +1,144 @@
+\documentclass[fleqn]{scrartcl}
+
+% packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+%\usepackage[margin=0.8in]{geometry}
+\usepackage{graphics}
+\usepackage{graphicx}
+%\usepackage{helvet}
+\usepackage[numbers]{natbib}
+
+\newcommand{\D}{\mathrm{d}}
+\newcommand{\eul}{\mathrm{e}}
+\newcommand{\im}{\mathrm{i}}
+\newcommand{\tr}{\mathrm{tr\,}}
+\newenvironment{denseitem}{
+  \begin{itemize}
+    \setlength{\itemsep}{0pt}
+    \setlength{\parskip}{0pt}
+    \setlength{\parsep}{0pt}
+}{
+  \end{itemize}
+}
+\setkomafont{caption}{\footnotesize}
+\setkomafont{captionlabel}{\footnotesize\itshape}
+\addtokomafont{sectioning}{\rmfamily}
+
+\title{The two-dimensional Ising model}
+\subtitle{\vspace{12pt}Simulation using two Monte Carlo algorithms\\\textit{Computational Physics, Universit\"at Potsdam}}
+\author{Julius Eberhard}
+
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\subsection{Ising model}
+
+The Ising model, in general, is a model of discrete two-valued variables located on a lattice and interacting with each other under the possible influence of an external field.
+It is commonly used as a model of ferromagnetism.
+In its simplest two-dimensional form, spin variables $s_i$ that can take the values $\pm 1$ lie on a square lattice and interact with their direct neighborhood independent of the location within the lattice and without the presence of an external magnetic field.
+The Hamiltonian of the system then reads
+%
+\begin{align*}
+  H = -J \sum_{\langle i j \rangle} s_i s_j,
+\end{align*}
+%
+where $i$, $j$ denote lattice sites and the first sum is only conducted for distinct pairs of nearest neighbors ($\langle i j \rangle = \langle j i \rangle$ occurs only once in the sum).
+$J$ is the interaction energy between two spins that are nearest neighbors.
+
+In the present form of the model, a ferromagnetic behavior of the lattice---lowest interaction energy for globally aligned spins, implying the ability for spontaneous magnet\-ization---is observed when $J > 0$.
+
+\newpage
+\subsection{Monte Carlo methods}
+
+The outline described here essentially follows the explanations in \cite{newman99}.
+
+The simulation of an equilibrated physical system using Monte Carlo methods---as done here---relies on the statistical description of an equilibrium state of the system.
+Assuming the Ising model to be in thermal equilibrium with a heat reservoir at temperature $T$, the probability of finding the system in a state with Hamiltonian $H_\mu$ is
+%
+\begin{align} \label{eq:can}
+  p_\mu = \frac{1}{Z} \eul^{-\beta E_\mu},
+\end{align}
+%
+where $Z$ is the canonical partition function, $\beta = (k T)^{-1}$, and $E_\mu$ the eigenvalue of $H_\mu$.
+Here, probability refers to the share of time steps with state $\mu$ in an infinitely long simulation, $p_\mu = \lim_{t \rightarrow \infty} w_\mu (t)$, where $w_\mu (t)$ is the weight associated to the state $\mu$ at time $t$.
+The time evolution of the weights $w_\mu$, which can be understood as non-equilibrium probabilities, follows
+%
+\begin{align*}
+  \dot{w}_\mu = \sum_\nu \Big(w_\nu(t) P(\nu \rightarrow \mu) - w_\mu(t) P(\mu \rightarrow \nu)\Big).
+\end{align*}
+%
+This is a simple rate equation (difference of arrival rate toward $\mu$ and departure rate from $\mu$) and depicts a Markov process in which the transition from state $\mu$ to state $\nu$ occurs with probability $P(\mu \rightarrow \nu)$.
+Having an \emph{equilibrium} state requires that $\dot{w}_\mu = 0$ and allows $w_\mu$ to be replaced by the equilibrium probability $p_\mu$, which implies
+%
+\begin{align} \label{eq:balance}
+  \sum_\nu p_\mu P(\mu \rightarrow \nu) = \sum_\nu p_\nu P(\nu \rightarrow \mu) \quad \stackrel{\sum_\nu P(\mu \rightarrow \nu) = 1}{\Longrightarrow} \quad p_\mu = \sum_\nu p_\nu P(\nu \rightarrow \mu).
+\end{align}
+%
+The additional condition of \textsl{detailed balance},
+%
+\begin{align} \label{eq:detbalance}
+  p_\mu P(\mu \rightarrow \nu) = p_\nu P(\nu \rightarrow \mu),
+\end{align}
+%
+ensures that the method converges to actual equilibrium instead of unintentionally reaching a limit cycle, for which \eqref{eq:balance} may also be true.
+
+A Monte Carlo method aims at simulating a Markov chain of states which ultimately realizes the equilibrium probability distribution \eqref{eq:can}.
+It therefore needs to obey conditions \eqref{eq:balance} and \eqref{eq:detbalance}, with the detailed balance relation specified by \eqref{eq:can},
+%
+\begin{align*}
+  \frac{P(\mu \rightarrow \nu)}{P(\nu \rightarrow \mu)} = \frac{p_\nu}{p_\mu} = \eul^{-\beta (E_\nu - E_\mu)}.
+\end{align*}
+%
+In order to actually create an algorithm consistent with this condition, it is helpful to split each transition probability into a probability which which the algorithm creates a new state $\kappa$ from $\iota$, $g(\iota \rightarrow \kappa)$, and a probability of accepting the new state, the \textsl{acceptance ratio} $A(\iota \rightarrow \kappa)$:
+%
+\begin{align*}
+  \frac{P(\mu \rightarrow \nu)}{P(\nu \rightarrow \mu)} = \frac{g(\mu \rightarrow \nu) A(\mu \rightarrow \nu)}{g(\nu \rightarrow \mu) A(\nu \rightarrow \mu)} = \eul^{-\beta (E_\nu - E_\mu)}.
+\end{align*}
+%
+This distinction allows for tweaking the probabilities associated with the two processes of generation of a state and acceptance of this state separately.
+
+
+\subsection{Metropolis algorithm}
+
+First suggested by \cite{metropolis53}, the Metropolis algorithm comprises the following specifications of the Monte Carlo method:
+%
+\begin{denseitem}
+  \item[(a)] A new state is created by flipping only a single spin.
+  \item[(b)] The probability of the algorithm to create a new state $\nu$ from state $\mu$ is independent of the choice of $\nu$, thus $g(\mu \rightarrow \nu) = 1/N = g(\nu \rightarrow \mu)$, where $N$ is the number of possible new states created according to (a). This implies that
+    %
+    \begin{align*}
+      \frac{P(\mu \rightarrow \nu)}{P(\nu \rightarrow \mu)} = \frac{A(\mu \rightarrow \nu)}{A(\nu \rightarrow \mu)} = \eul^{-\beta (E_\nu - E_\mu)}.
+    \end{align*}
+  \item[(c)] Consistent with (b), the acceptance ratio is chosen to obey
+    %
+    \begin{align*}
+      A(\mu \rightarrow \nu) = \begin{cases} \eul^{-\beta (E_\nu - E_\mu)} & \mbox{if } E_\nu - E_\mu > 0, \\ 1 & \mbox{else}.\end{cases}
+    \end{align*}
+\end{denseitem}
+
+\section{Implementation}
+
+We set $k = 1 [E]/[T]$, $J = 1 [E]$, where $[\cdot]$ refers to the unit of the respective observable.
+The Hamiltonian is thus
+%
+\begin{align*}
+  H = -\sum_{\langle i j \rangle} s_i s_j.
+\end{align*}
+
+
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+\begin{thebibliography}{xx}
+  \bibitem{newman99} Newman, M.E.J., Barkema, G.T., 1999. Monte Carlo methods in statistical physics. \emph{Oxford University Press}.
+  \bibitem{metropolis53} Metropolis, N., Rosenbluth, A.W., Rosenbluth, M.N., Teller, A.H., and Teller, E., 1953. Equation of state calculations by fast computing machines. \emph{J. Chem. Phys.} \textbf{21}(6), 1087.
+\end{thebibliography}
+
+
+\end{document}
