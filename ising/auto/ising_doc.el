@@ -28,5 +28,6 @@
     "newman99"
     "metropolis53")
    (LaTeX-add-environments
-    "denseitem")))
+    "denseitem"))
+ :latex)
 

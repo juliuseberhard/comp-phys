@@ -117,6 +117,25 @@ int main() {
   for (int i = 0; i < len_int; i++) {
     /* iterate through Trange */
 
+		/* open file for writing */
+    sprintf(path1, "psm1_L%d_N%d_Ti%f_Tf%f_dT%f_Tact%f.csv",
+						L, N, Ti, Trange[len_int - 1], dT, Trange[i]);
+    sprintf(path2, "psm2_L%d_N%d_Ti%f_Tf%f_dT%f_Tact%f.csv",
+						L, N, Ti, Trange[len_int - 1], dT, Trange[i]);
+    FILE *fp1;
+		FILE *fp2;
+    fp1 = fopen(path1, "w");
+    fp2 = fopen(path2, "w");
+
+    if (fp1 == NULL) {
+      fprintf(stderr, "Cannot open output file for simulation 1! Exiting.\n");
+      exit(1);
+    }
+    if (fp2 == NULL) {
+      fprintf(stderr, "Cannot open output file for simulation 2! Exiting.\n");
+      exit(1);
+    }
+
     /* intialize per-spin magnetization */
     double psm1[N + 1];  /* should include the initial state */
     double psm2[N + 1];
@@ -125,7 +144,12 @@ int main() {
       psm2[0] = psm2[0] + s2[k];
     }
 
-    for (int j = 0; j < N; j++) {
+    /* write initial values to files */
+    /* output format: iteration,psm */
+    fprintf(fp1, "0,%f\n", psm1[0]);
+    fprintf(fp2, "0,%f\n", psm2[0]);
+
+    for (int j = 1; j < N; j++) {
       /* Metropolis iterations at fixed T */
 
       /* choose random lattice site */
@@ -166,12 +190,16 @@ int main() {
         }
       }
 
-      /* compute per-spin magnetization at step j */
+      /* compute per-spin magnetization at iteration j at fixed T */
       psm1[j + 1] = psm1[j] + 2 * s1[rand_idx1];
       psm2[j + 1] = psm2[j] + 2 * s2[rand_idx2];
-    }
-  ...
-  }
 
+      /* write to file */
+      fprintf(fp1, "%d,%f\n", j + 1, psm1[j + 1]);
+      fprintf(fp2, "%d,%f\n", j + 1, psm2[j + 1]);
+    }
+		fclose(fp1);
+		fclose(fp2);
+  }
   return 0;
 }
